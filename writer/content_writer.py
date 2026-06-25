@@ -1,14 +1,6 @@
 """
 writer/content_writer.py
-TrafficAI Engine 1.0 â AI Content Writer v2
-
-ì°¸ì¡° ê³ì  íµí©:
-  ddwhat1985  â ì¼í ë°ê²¬, ê°ì¡± ë§¥ë½, "ì¤ì¹ì´ë¤", "ìì²­/íì´/ì¬êµ¬ìì"
-  dior8524    â ".." ì¤ìí, "ì¹ëë", ìê³ ë¦¬ì¦ ì°, "ì¢ì!/ììë¥?"
-  yoonseul_ys â ìì§ ê³ ë°± êµ¬ì¡° (ì¡°í4735, ì¢ìì173) ë°ì´ë´ í¨í´ ì°¨ì©
-
-5 í¤ Ã 5 êµ¬ì¡° = 25ê°ì§ ì¡°í© / í¸ëí° ì¤í ìë¬´ ì½ì
-ìëì°ë°´ ìë°© 5ë ê·ì¹ ì¤ì
+TrafficAI Engine 1.0 — AI Content Writer v2
 """
 
 import os
@@ -22,217 +14,68 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-
-# ===========================================================================
-# [A] ê³µì  ë°ì´í° êµ¬ì¡°
-# ===========================================================================
-
 @dataclass
 class StoryPacket:
-    product_id:       str
-    product_name:     str
-    store_name:       str
-    product_url:      str
-    image_url:        str
-    city:             str
-    situation:        str
-    emotion:          str
-    story_theme:      str
+    product_id: str
+    product_name: str
+    store_name: str
+    product_url: str
+    image_url: str
+    city: str
+    situation: str
+    emotion: str
+    story_theme: str
     product_features: list = field(default_factory=list)
-    price_krw:        Optional[int] = None
-
+    price_krw: Optional[int] = None
 
 @dataclass
 class ContentOutput:
-    content:           str
-    first_comment:     str
-    faq_data:          list
-    tone_variant:      str
+    content: str
+    first_comment: str
+    faq_data: list
+    tone_variant: str
     structure_variant: str
-    raw_prompt:        str = ""
+    raw_prompt: str = ""
 
+FOLLOWER_TERMS = ["스친이들", "치니덜", "스치나들", "치니"]
 
-# ===========================================================================
-# [B] í¤ì¤ë§¤ë ë ì´ì´ â 5 í¤ Ã 5 êµ¬ì¡°
-# ===========================================================================
-
-# íë¡ì í¸ì¹­ í â ê³ì ë³ ì¤ì  ì¬ì© íí
-FOLLOWER_TERMS = [
-    "ì¤ì¹ì´ë¤",    # ddwhat1985
-    "ì¹ëë",      # dior8524
-    "ì¤ì¹ëë¤",    # yoonseul_ys
-    "ì¹ë",        # dior8524 ë¨ìí
-]
-
-# ---------- êµ¬ì¡° ë³í ----------
 STRUCTURE_VARIANTS = {
-    "situation_first": {
-        "label": "ìí© â ë°ê²¬ â í¹ì§ â ì§ë¬¸",
-        "hint": (
-            "ì´ë ê°ë¤ê° ë°ê²¬íëì§ ì§§ê² ì°ê³ , ê°ê²©ì´ë í¹ì§ ì¸ê¸íê³ , "
-            "ë§ì§ë§ì íë¡ìíí ìëì§/ê²½í ìëì§ ë¬»ë ì§ë¬¸ì¼ë¡ ë."
-        ),
-    },
-    "price_shock": {
-        "label": "ê°ê²© ëë â ì¤ëª â ì§ë¬¸",
-        "hint": (
-            "ê°ê²©ì´ ì¼ë§ë ì¼ì§/ì¢ìì§ ë¨¼ì  ì¹ê³ , "
-            "ì´ëì ìëì§ ì´ë¤ ìíì¸ì§ ì¤ëªíê³ , "
-            "íë¡ìë¤ ì¬ê¸° ìëì§ ë¬¼ì´ë´."
-        ),
-    },
-    "contrast": {
-        "label": "ë³ê¸°ëììëë° ë°ì  â ì§ë¬¸",
-        "hint": (
-            "ì²ìì ê·¸ë¥ ì§ëì¹ë ¤ íëë° ì¬ê² ëë¤ë íë¦. "
-            "ì¨ë³´ë ìê°ë³´ë¤ ì¢ìë¤ë ìì§í ë°ì. "
-            "ë§ì§ë§ì ì´ë°ê±° ë³¸ ì  ìëì§ ê²½í ì ë."
-        ),
-    },
-    "recommendation": {
-        "label": "ê°ì¶ ê³µì í â ì§ë¬¸",
-        "hint": (
-            "ì¼ë³¸ ê°ë©´ ì´ê±° ê¼­ ì¬ì¼ íë¤ë ê°ì¶ í¤. "
-            "ìí í¹ì§ ì§§ê² ì¤ëªíê³  ê°ê²© ì¸ê¸. "
-            "íë¡ìë¤ë ì±ê²¨ê°ëì§ ë¬¼ì´ë´."
-        ),
-    },
-    "honest_confession": {
-        "label": "ìì§ ê³ ë°± â ìí êµ¬ì â ê³µê° ì ë",
-        "hint": (
-            "íë¡ìë¤ì... ìì§íê² ë§í ê² ìì¼ë¡ ìì. "
-            "ë´ê° ì ì´ ìíì´ íìíëì§ ì§§ì ìí© ê³ ë°±. "
-            "ì´ ìí ëë¶ì í´ê²°ëë¤ë íë¦. "
-            "ë§ì§ë§ì 'ëë§ ì´ë?' ëë 'ì¨ë³¸ ì¬ë ìì´?' ìì ë¶ëë¬ì´ ê³µê° ì ë ì§ë¬¸."
-        ),
-    },
+    "situation_first": {"label": "상황 → 발견 → 특징 → 질문", "hint": "어디 갔다가 발견했는지 짧게 쓰고, 마지막은 팔로워한테 묻는 질문으로 끝."},
+    "price_shock": {"label": "가격 놀람 → 설명 → 질문", "hint": "가격이 얼마나 싼지/좋은지 먼저 치고, 팔로워들 여기 아는지 묻어봐."},
+    "contrast": {"label": "별기대없었는데 반전 → 질문", "hint": "처음엔 그냥 지나치려 했는데 사게 됨다는 흐름. 마지막은 이런거 본 적 있는지 경험 유도."},
+    "recommendation": {"label": "강추 공유형 → 질문", "hint": "일본 가면 이거 꼭 사야 한다는 강추 톤. 팔로워들도 챙겨갔는지 묻어봐."},
+    "honest_confession": {"label": "솔직 고백 → 상품 구원 → 공감 유도", "hint": "팔로워들아... 솔직하게 말할게 식으로 시작. '나만 이래?' 또는 '써본 사람 있어?' 식의 공감 유도."},
 }
 
-# ---------- í¤ ë³í ----------
 TONE_VARIANTS = {
-    "ddwhat_basic": {
-        "label": "ddwhat ê¸°ë³¸ì²´",
-        "instruction": (
-            "ddwhat1985 ì¤ì  ë§í¬. ì§§ì ë¬¸ì¥ ì¤ë°ê¿. "
-            "'ì¤ì¹ì´ë¤' ëë 'ì¹ëë' í¸ì¹­. "
-            "~ìì´, ~íì´, ~ìì, ~ìë ì¬ë? ì¢ê²°ì´ë¯¸. "
-            "ê°ì¡±/ìê¸° ì¸ê¸ ì ë ê¸ì§ ('ì°ë¦¬ ë³ì', 'ì ê¸°', 'ì ê¸°ì©í' ë± ì ë¶ ê¸ì§). "
-            "ìì:\n"
-            "ì¤ë ì¿í¬ë¡ ëë¬ìëë° ë§ì°ëª¨í í¤ìì ë¤ë ëë°\n"
-            "ì¬ê¸° ëë­ì¤í ì´ ì½ë ìì²­ ë¤ìíëë¼\n"
-            "ì¼ë³¸ íì  í·ìº£ì´ ì´ë ê² ë§ì ê±´ ì¤ ëª°ëì\n"
-            "ì§ì§ ìì²­ì¸! ì¤ì¹ì´ë¤ ì¬ê¸° ìë ì¬ë?"
-        ),
-    },
-    "ddwhat_excited": {
-        "label": "ddwhat í¥ë¶ì²´",
-        "instruction": (
-            "ì§ì§ ì¢ìì í¥ë¶ë ìí. 'ì§ì§' 2~3ë² ë°ë³µ ìì°ì¤ë½ê². "
-            "ìí ê²½íì 'í¡ìíë¤', 'ë¯¸ì³¤ë¤' ìì¼ë¡ ê³¼ì¥. "
-            "ê°ì¡±/ìê¸° ì¸ê¸ ì ë ê¸ì§. "
-            "ê°ì± ê³¼ì íí ê¸ì§: 'ëìê² ìì íë³µì', 'ì§ì³ìë ë', 'ìë¡ê° ëë¤' ê°ì ëë¼ë§í±í ë¬¸ì¥ ê¸ì§. "
-            "ìì:\n"
-            "ì§ì§ ì§ëë²ì ì¼ë³¸ê°ì ëí¤í¸í ê°ëë°\n"
-            "ì§ì§ í¡ìíë©´ì ë¨¹ìë¯\n"
-            "ì¤ì¹ì´ë¤ ì´ê±° ë¨¹ì´ë³¸ ì¬ë ìì´?\n"
-            "---\n"
-            "í¥ë¶ ë¤ íë¡ì ì¼ì ëì´ë¤ì´ë ì§ë¬¸ì¼ë¡ ë."
-        ),
-    },
-    "dior_chill": {
-        "label": "dior ì¬ì ì²´ + ìê³ ë¦¬ì¦ ì°",
-        "instruction": (
-            "dior8524 ë§í¬. '..' ì¤ìíë¡ ë§ íë¦¬ê¸°. 'ãã' ê°ë³ê². "
-            "'ì¹ëë' ëë 'ì¤ì¹ëë¤' í¸ì¹­. "
-            "'ëë', 'ë', 'ì§±ì´ì§', '~ìë?', '~ììë¥?' ì¬ì©. "
-            "ìê³ ë¦¬ì¦/ì°ì° íì´ë° ì° í ì¤ ë£ê¸° (ì: 'ìê³ ë¦¬ì¦ì´ ìê¾¸ ë³´ì¬ì£¼ëê±°ì¼..', "
-            "'ìë²½ì ëë´ëë° ì´ê² ë¨ëê±°ì¼..') "
-            "ìì:\n"
-            "ì¤ì§ë§..ì ìíµì´ì¼..\n"
-            "ì¸ì¼ê¸°ê° ì´ì¼..?\n"
-            "ì¤ê°ì ì¸ì¼ íëª© ëªê° ê±¸ë¦¬ê¸´ í¨ ãã\n"
-            "ì¹ëë ì´ë°ê±° ë´¤ìë¥?"
-        ),
-    },
-    "dior_info": {
-        "label": "dior ì ë³´ê³µì ì²´",
-        "instruction": (
-            "dior8524 ì ë³´ ê³µì  ì¤íì¼. 'ââ' ëë ê°ì  íì¼ë¡ ìì. "
-            "ìí í¹ì§ì ì¤ë§ë¤ ëì´. 'ì¢ì!', 'ë§ëëë¼', 'í ë²ì' íí. "
-            "'ì¹ëë' ëë 'ì¤ì¹ì´ë¤' í¸ì¹­. ë§ì§ë§ ì§ë¬¸. "
-            "ìì:\n"
-            "ââ íì´ë ì¼ì´í¬ ì¢ìíë ì¹ë ììë¥?\n"
-            "ë ë¶ì°ê°ì ë ë ë§ë íì´ëì¼ì´í¬ë¥¼ ë¨¹ììëë°\n"
-            "ì´ê±° ì´ì½ë§ì ê·¸ë¥ ë¸ë¼ì°ëë¼ê³  ë³´ë©´ ëë\n"
-            "ê¾¸ë ê³ ê¸ì§ ì´ì½ ë§\n"
-            "í ë²ì ì¬ë¬ê° ì£¼ë¬¸í´ì ëëë³´ê´íê¸° ì¢ì!"
-        ),
-    },
-    "honest_confession": {
-        "label": "ìì§ ê³ ë°±ì²´",
-        "instruction": (
-            "yoonseul_ys ë°ì´ë´ êµ¬ì¡° ì°¨ì©. 'ì¤ì¹ëë¤...' ëë 'ì¹ëë...' + ê°ì  í. "
-            "'ì¤ë ì§ì§ ìì§íê² ë§í ê²' ëë 'ìì§í...' ìì¼ë¡ ê³ ë°± ì ì¸. "
-            "ë´ê° ì ì´ê² íìíë 1~2ì¤ ìì§í ìí© ì¤ëª. "
-            "ì´ ìí ëë¶ì í´ê²°/ë°ê²¬íë¤ë íë¦. "
-            "ë§ì§ë§: 'ëë§ ì´ë?', 'ì¨ë³¸ ì¬ë?', 'ê³µê°ëë©´ ëê¸ ã' ì ë¶ëë¬ì´ ì°¸ì¬ ì ë. "
-            "ìì êµ¬ì¡°:\n"
-            "ì¤ì¹ëë¤...ìì§í ë§í ê²\n"
-            "ë ìì¦ [ìí©] ëë¬´ íë¤ìê±°ë \n"
-            "ê·¼ë° ì´ê±° ì°ê¸° ììíëê¹ ì§ì§ ë¬ë¼\n"
-            "[ìí í¹ì§ 1~2ì¤]\n"
-            "ëë§ ì´ë° ê±° ëª°ëë ê±°ì¼..?"
-        ),
-    },
+    "ddwhat_basic": {"label": "ddwhat 기본체", "instruction": "ddwhat1985 실제 말투. 짧은 문장 줄바꾸. '스친이들' 또는 '치니덜' 호칭. ~있어, ~팅어, ~있음, ~아는 사람? 종결어미. 가족/아기 언급 절대 금지."},
+    "ddwhat_excited": {"label": "ddwhat 흥분체", "instruction": "진짜 좋아서 흥분된 상태. '진짜' 2~3번 반복. '흥입했다', '미쳤다' 식으로 과장. 감성 과잇 표현 금지."},
+    "dior_chill": {"label": "dior 여유체 + 알고리즘 썬", "instruction": "dior8524 말투. '..' 줄임표로 말 흔리기. '컨니덜' 또는 '스치나들' 호칭. '넘나', '넘', '짱이지', '~아님?', '~있었뉅?' 사용."},
+    "dior_info": {"label": "dior 정보공유체", "instruction": "dior8524 정보 공유 스타일. '★★' 또는 감정 훅으로 시작. 상품 특징을 줄마다 나열. '좋앙!', '맛나더라' 표현. 마지막 질문."},
+    "honest_confession": {"label": "얄직 고백체", "instruction": "yoonseul_ys 바이럴 구조 차용. '스치나들...' 또는 '치니덜...' + 감정 훅. 고백 선언 후 마지막: '나만 이래?', '써본 사람?', '공감되면 댓글 ぅ' 식 참여 유도."},
 }
 
-# ---------- í¸ëí° ì¤í í¨í´ ----------
 PHONE_TYPO_EXAMPLES = [
-    ("ìì²­",      "ìì²­"),
-    ("ìì²­ë",    "ìì²­ë"),
-    ("ëë¬´",       "ë"),
-    ("ëë¬´ë",    "ëë"),
-    ("íì",       "íì´"),
-    ("ìì´",       "ìì"),
-    ("ì¬ê³ ìì",  "ì¬êµ¬ìì"),
-    ("ì¢ì",       "ì¢ì"),
-    ("ììë",    "ììë¥"),
-    ("ì´ê±°ë´",    "ì´ê±°ë´ë´"),
-    ("ëë´ëë°",  "ëë´ëë°"),
-    ("ìì§í",    "ìì§ì´"),
-    ("ì§ì§ë¡",    "ì§ì§ë£¨"),
-    ("ìì´ê³ ",    "ìì´êµ¬"),
-    ("ë¨¹ìëë°",  "ë¨¹ìë¯"),
-    ("ìëì¬ë",  "ìëì¬ë?ã"),
+    ("엄청", "업청"), ("엄청나", "업청나"), ("너무", "넘"), ("너무나", "넘나"),
+    ("팔아", "팔어"), ("있어", "있응"), ("사고있음", "사구있음"), ("좋아", "좋앙"),
+    ("있었냐", "있었뉅"), ("눈떴었는데", "눈딯는데"), ("솔직히", "얄직이"),
+    ("진짜로", "진짜루"), ("먹었는데", "먹은듯"), ("아는사람", "아는사람?う"),
 ]
 
-# ---------- ì¤íë í í ----------
 OPENING_HOOKS = [
-    "ì¤ë {city} ëë¬ìëë°",
-    "ì§ëë²ì {city} ê°ìë",
-    "{city} ê°ë¤ê° {situation}ìì",
-    "ì¤ë {situation} ë¤ë ëë°",
-    "{city} ì¬íì¤ì {situation} ë¤ë ëë°",
-    "ì§ì§ {city} ê°ë©´",
-    "{situation} ê°ë¤ê° ë°ê²¬íê±´ë°",
-    "ì´ë²ì {city} ê°ìë",
-    "{city} {situation}..ì¤ì§ë§..",
-    "ì¤ì¹ì´ë¤ {city} ê°ë©´ ê¼­",
-    "{city} ìê³ ë¦¬ì¦ì´ ìê¾¸ ë³´ì¬ì£¼ëê±°ì¼..",
-    "ìë²½ì ëë´ëë° {city} {situation}ì´ ë¨ëê±°ì¼..",
-    "ì¤ì¹ëë¤...ì¤ë ìì§íê² ë§í ê²",
-    "ì§ì§ {city} {situation} ë¤ë¤ ìì?",
+    "오늘 {city} 놀러왔는데", "지난번에 {city} 갔을때",
+    "{city} 갔다가 {situation}에서", "오늘 {situation} 들렁는데",
+    "{city} 여행중에 {situation} 들렁는데", "진짜 {city} 가면",
+    "{situation} 갔다가 발견한건데", "{city} {situation}..오지마..",
+    "스친이들 {city} 가면 꼭", "{city} 알고리즘이 자꾸 보여주는거야..",
+    "새벽에 눈딯는데 {city} {situation}이 뜨는거야..",
+    "스치나들...오늘 얄직하게 말할게", "진짜 {city} {situation} 다들 알아?",
 ]
 
-
-# ===========================================================================
-# [C] AI ì ê³µì ì¶ìí
-# ===========================================================================
 
 class BaseAIProvider(ABC):
     @abstractmethod
-    def complete(self, system: str, user: str, max_tokens: int = 600) -> str:
-        ...
+    def complete(self, system: str, user: str, max_tokens: int = 600) -> str: ...
 
 
 class OpenAIProvider(BaseAIProvider):
@@ -243,19 +86,15 @@ class OpenAIProvider(BaseAIProvider):
             raise ImportError("pip install openai")
         api_key = os.getenv("OPENAI_API_KEY")
         if not api_key:
-            raise EnvironmentError("OPENAI_API_KEY íê²½ë³ì íì")
+            raise EnvironmentError("OPENAI_API_KEY 환경변수 필요")
         self._client = OpenAI(api_key=api_key)
         self.model = os.getenv("OPENAI_MODEL", "gpt-4o")
 
-    def complete(self, system: str, user: str, max_tokens: int = 600) -> str:
+    def complete(self, system, user, max_tokens=600):
         resp = self._client.chat.completions.create(
             model=self.model,
-            messages=[
-                {"role": "system", "content": system},
-                {"role": "user",   "content": user},
-            ],
-            max_tokens=max_tokens,
-            temperature=0.93,
+            messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
+            max_tokens=max_tokens, temperature=0.93,
         )
         return resp.choices[0].message.content.strip()
 
@@ -268,16 +107,14 @@ class ClaudeProvider(BaseAIProvider):
             raise ImportError("pip install anthropic")
         api_key = os.getenv("ANTHROPIC_API_KEY")
         if not api_key:
-            raise EnvironmentError("ANTHROPIC_API_KEY íê²½ë³ì íì")
+            raise EnvironmentError("ANTHROPIC_API_KEY 환경변수 필요")
         self._client = anthropic.Anthropic(api_key=api_key)
         self.model = os.getenv("CLAUDE_MODEL", "claude-opus-4-8")
 
-    def complete(self, system: str, user: str, max_tokens: int = 600) -> str:
+    def complete(self, system, user, max_tokens=600):
         import anthropic
         msg = self._client.messages.create(
-            model=self.model,
-            max_tokens=max_tokens,
-            system=system,
+            model=self.model, max_tokens=max_tokens, system=system,
             messages=[{"role": "user", "content": user}],
         )
         return msg.content[0].text.strip()
@@ -290,249 +127,143 @@ def get_ai_provider() -> BaseAIProvider:
     return OpenAIProvider()
 
 
-# ===========================================================================
-# [D] ContentWriter ë©ì¸ í´ëì¤
-# ===========================================================================
-
-# ì²« ëê¸ ê³ ì  ííë¦¿ (5makase.com íë³´)
 FIRST_COMMENT_TEMPLATES = [
-    "ì¬ì§ ì ì´ ì í, ì¼ë³¸ ì§êµ¬ë¡ êµ¬í  ì ìì´~ 5makase.com íë² ë¤ë¬ë´ ð",
-    "ì´ê±° ì¼ë³¸ ì§êµ¬ ê¶ê¸íë©´ â 5makase.com ìì ì°¾ìë´! ì¼ë³¸ ì§êµ¬ ì ë¬¸ì´ì¼",
-    "ì§êµ¬ ë§í¬ ìê³  ì¶ì¼ë©´ â www.5makase.com (ì¼ë³¸ ì§êµ¬ ì ë¬¸ ì¬ì´í¸)",
-    "ì´ ìí ì¼ë³¸ìì ì§ì  ì¤ë ê±°ì¼~ 5makase.com ê°ë©´ ë ë§ì",
-    "ì¼ë³¸ ì§êµ¬ ë ë³´ê³  ì¶ì¼ë©´ â 5makase.com ë¶ë§í¬ í´ë¬!",
+    "사진 속 이 제품, 일본 직구로 구할 수 있어~ 5makase.com 한번 들러봐 👀",
+    "이거 일본 직구 궁금하면 → 5makase.com 에서 찾아봐! 일본 직구 전문이야",
+    "직구 링크 알고 싶으면 → www.5makase.com (일본 직구 전문 사이트)",
+    "이 상품 일본에서 직접 오는 거야~ 5makase.com 가면 더 많아",
+    "일본 직구 더 보고 싶으면 → 5makase.com 북마크 해두",
 ]
 
+
 class ContentWriter:
-    _SAFETY_RULES = """[ì ë ì¤ì ê·ì¹ â ìë° ì ì¦ì ì¬ìì±]
-1. ë³¸ë¬¸ì URL(http, www ë±) ì ë í¬í¨ ê¸ì§
-2. í´ìíê·¸(#ì¼ë¡ ììíë ë¨ì´) ì ë í¬í¨ ê¸ì§
-3. ì´ëª¨ì§ë ë³¸ë¬¸ ì ì²´ìì ìµë 1ê°ë§ íì©
-4. ë³¸ë¬¸ ë§ì§ë§ ë¬¸ì¥ì ë°ëì ëììê² ëì§ë ìì°ì¤ë¬ì´ ì§ë¬¸ì¼ë¡ ëë¼ ê²
-5. ê´ê³ Â·ë§ì¼í ë¬¸êµ¬ ì ë ê¸ì§: 'êµ¬ë§¤', 'í ì¸', 'ì´ë²¤í¸', 'ì§ê¸ êµ¬ì', 'í´ë¦­', 'ë§í¬', 'íì§ ë³´ì¥', 'ì§ìì', 'ì±ë¶ ë¯¿ì ì ì', 'ì¶ì²ëë¦½ëë¤', 'ê°ë ¥ ì¶ì²' ì ë ì¬ì© ê¸ì§
-6. ê°ê²©(ì«ì+ì, ì«ì+ì, ì/ì íê¸°) ì ë í¬í¨ ê¸ì§
-7. AIì²ë¼ ë¤ë¦¬ë ë¬¸ì¥ ê¸ì§: '~ê² ê°ì§ ìë?', '~ì´ë ì¸ì?', '~í´ë³´ì¸ì', '~ëë¦½ëë¤' ì ë ê¸ì§
-8. ì¤ì  ì¬ëì´ í¸ëí°ì¼ë¡ ë¹ ë¥´ê² íì´íí ê²ì²ë¼ â ìë²½í ë¬¸ì¥ë³´ë¤ ì½ê° ê±°ì¹ ê² ë ìì°ì¤ë¬ì""".strip()
+    _SAFETY_RULES = (
+        "[절대 준수 규칙]\n"
+        "1. 본문에 URL(http, www 등) 절대 포함 금지\n"
+        "2. 해시태그(#으로 시작하는 단어) 절대 포함 금지\n"
+        "3. 이모지는 본문 전체에서 최대 1개만 허용\n"
+        "4. 본문 마지막 문장은 반드시 독자에게 던지는 자연스러운 질문으로 끝낼 것\n"
+        "5. 광고·마케팅 문구 절대 금지: '구매', '할인', '이벤트', '지금 구입', '클릭', '링크' 절대 사용 금지\n"
+        "6. 가격(숫자+원, 숫자+엔) 절대 포함 금지\n"
+        "7. AI처럼 들리는 문장 금지: '~것 같지 않니?', '~어때세요?', '~해보세요', '~드립니다' 절대 금지\n"
+        "8. 실제 사람이 핸드폰으로 빨리게 타이핑한 것쳄럼"
+    )
 
-    # ì¤ì  ë°ì´ë´ í¬ì¤í¸ 5ê° ìì (ìì¤í íë¡¬íí¸ ë´ì¥)
-    _POST_EXAMPLES = """[ì¤ì  í¬ì¤í¸ ìì 1 â ddwhat1985 ì¼í ë°ê²¬ì²´ (10ì¤+)]
-ì¤ë ì¿í¬ë¡ ëë¬ìëë° ëìë§ì¸ ì¼ ìì´
-ì¬ê¸°ê° ì ìì· ì ê¸° ì©í ìì²­ ì¸ê² íì´
-í°ìì¸  íì¥ì 380ì ì ëì¼
-ì§ì§ ìì²­ì¸!
-ì¼ë³¸ ì ìì©í ë¬¼ê° ì´ê±° ì¤íì¼?
-íêµ­ì´ë ë¹êµíë©´ ì§ì§ ë°ê°ë ìëê³ 
-ê·¸ë¥ ê·¸ë¥ ê·¸ë¥ ì¸..
-ì´ ì ëë©´ ìºë¦¬ì´ ë°ì ì¬ê¸°ì ì±ìë ëë ê±° ìë?
-ì¤ì¹ì´ë¤ ì¬ê¸° ìë ì¬ë? ã
+    _POST_EXAMPLES = (
+        "[실제 포스트 예시 1 — ddwhat1985 쇼핑 발견체]\n"
+        "오늘 삿포로 놀러왔는데 니시마쁜야 있어\n"
+        "여기가 유아옷 업청 싸게 팔어\n"
+        "진짜 업청싸!\n"
+        "스친이들 여기 아�J 사람? う\n\n"
+        "[실제 포스트 예시 2 — dior8524 정보공유체]\n"
+        "★★ 파운드 케이크 좋아하는 치니 있었뉅?\n"
+        "이거 초코맛은 그냥 브라우니라고 보면 되는\n"
+        "ꎾ덕 고급진 초코 맛\n"
+        "한 번에 여러개 주문해서 냉동보관하기 좋앙!\n"
+        "치니덜 이런거 먹어뵐뉅?\n\n"
+        "[실제 포스트 예시 3 — 얄직고백체]\n"
+        "스치나들...얄직히 말할게\n"
+        "나 요즘 진짜 힙들었거든\n"
+        "근데 이거 써보기 시작하면서 달라\n"
+        "나만 이런 거 몰랐던 거야..?"
+    )
 
-[ì¤ì  í¬ì¤í¸ ìì 2 â ddwhat1985 í¥ë¶ì²´ (12ì¤+)]
-ì§ì§ ì§ëë²ì ì¼ë³¸ê°ì ë¨¹ì ë¸ë°ì¹ì¸ë°
-ì§ì§ í¡ìíë©´ì ë¨¹ìë¯
-ìë ìì²­ ë§ê³  ê°ê²©ë ë§ì´ ë¼
-ê·¼ë° ê±°ê¸°ì ì´ ê³¼ì ì²ì ë´¤ê±°ë 
-ëë­ì¤í ì´ ê°ë¤ê° ë°ê²¬í ê±´ë°
-ì²ìì ê·¸ë¥ ììê¸¸ë íë ë¤ìëë°
-ìì ë£ë ìê° ì§ì§ ë©ì¶ ìê° ììì´
-ê²°êµ­ 5ê° ì¬ìëë° ë¹íê¸° íê¸° ì ì ë¤ ë¨¹ì´ë²ë ¸ì
-ì§ê¸ ìê°í´ë ì§ì§ ë§ììëë°..
-ì¤ì¹ì´ë¤ ì´ê±° ë¨¹ì´ë³¸ ì¬ë ìì´?
-
-[ì¤ì  í¬ì¤í¸ ìì 3 â dior8524 ì ë³´ê³µì ì²´ (12ì¤+)]
-ââ íì´ë ì¼ì´í¬ ì¢ìíë ì¹ë ììë¥?
-ë ë¶ì°ê°ì ë ë ë§ë íì´ëì¼ì´í¬ë¥¼ ë¨¹ììëë°
-ê·¸ê±° ìê°ëì ì¼ë³¸ ì§êµ¬ë¡ ì°¾ìë´¤ê±°ë 
-ì´ê±° ì´ì½ë§ì ê·¸ë¥ ë¸ë¼ì°ëë¼ê³  ë³´ë©´ ëë
-ê¾¸ë ê³ ê¸ì§ ì´ì½ ë§
-ê·¸ë¥ ë¨¹ì´ë ë§ìëë° ì»¤í¼ë ê°ì´ ë¨¹ì¼ë©´ ì§ì§..
-ì¼ë³¸ íì  í¬ì¥ì´ë¼ ì ë¬¼ì©ì¼ë¡ë ë±ì´ì¼
-í ë²ì ì¬ë¬ê° ì£¼ë¬¸í´ì ëëë³´ê´íê¸° ì¢ì!
-í´ëí´ì ë¨¹ì´ë ë§ ëê°ì
-ì¹ëë ì´ë°ê±° ë¨¹ì´ë´¤ë¥? ë¹ì·í ê±° ì¶ì² ìì´?
-
-[ì¤ì  í¬ì¤í¸ ìì 4 â dior8524 ì¬ì ì²´ (10ì¤+)]
-ì¤ì§ë§..ì ìíµì´ì¼..
-ì¸ì¼ê¸°ê° ì´ì¼..?
-ëë­ì¤í ì´ ë¤ì´ê°ë¤ê° ì§ì§ ë¹í©í¨
-ì¬ëë ë§ê³  ë¬¼ê±´ë ì´ë¯¸ ì ë°ì ëê° ê² ê°ì
-ê·¸ëë§ ì¤ê°ì ì¸ì¼ íëª© ëªê° ê±¸ë¦¬ê¸´ í¨ ãã
-ì´ ê°ê²©ì ì´ê² ëë¤ê³ ..? ì¶ì ê²ë¤ ëªê° ìì´
-ê·¼ë° ë ì¤ì´ ëë ê¸¸ì´ì..
-ê²°êµ­ 2ê°ë§ ë¤ê³  ëìëë° ì ì° ê² ê°ê¸°ë íê³ 
-ì¹ëë ì´ë°ê±° ë´¤ìë¥? ë­ ê±´ì§ ê±° ìì´?
-
-[ì¤ì  í¬ì¤í¸ ìì 5 â ìì§ê³ ë°±ì²´ (ë°ì´ë´ 173ì¢ìì êµ¬ì¡°, 14ì¤+)]
-ì¤ì¹ëë¤...ìì§í ë§í ê²
-ë ìì¦ ì§ì§ íë¤ìê±°ë 
-ë§¤ì¼ ìì¹¨ ì¼ì´ëë©´ í¼ê³¤íê³ 
-ë­ê° ê³ì ë¶ì¡±í ëëì´ ììëë°
-ê·¸ê² ë­ì§ ëª°ëì´
-ê·¼ë° ì´ê±° ì¨ë³´ê¸° ììíë©´ì
-ì ë´ê° ì´ê² ë¶ì¡±íêµ¬ë ì¶ëë¼ê³ 
-[ìí í¹ì§ 1~2ì¤ ìì°ì¤ë½ê²]
-ì§ì§ ì°ê³ ëì ë¬ë¼ì§ ê² ëê»´ì§ëê¹
-ì¬ëë¤ì´ ì ì´ê±° ê³ì ì¬ëì§ ì´ì  ì ê² ê°ì
-í¼ìë§ ìê³  ìê¸° ìê¹ìì ì¬ë ¤ë´
-ëë§ ì´ë° ê±° ëª°ëë ê±°ì¼..?""".strip()
-
-    def __init__(self, provider: Optional[BaseAIProvider] = None):
+    def __init__(self, provider=None):
         self._ai = provider or get_ai_provider()
 
     def _pick_variants(self):
-        structure    = random.choice(list(STRUCTURE_VARIANTS.values()))
-        tone         = random.choice(list(TONE_VARIANTS.values()))
-        hook_tmpl    = random.choice(OPENING_HOOKS)
+        structure = random.choice(list(STRUCTURE_VARIANTS.values()))
+        tone = random.choice(list(TONE_VARIANTS.values()))
+        hook_tmpl = random.choice(OPENING_HOOKS)
         follower_term = random.choice(FOLLOWER_TERMS)
         return structure, tone, hook_tmpl, follower_term
 
-    def _build_system_prompt(self, structure: dict, tone: dict, follower_term: str) -> str:
+    def _build_system_prompt(self, structure, tone, follower_term):
         typo_samples = random.sample(PHONE_TYPO_EXAMPLES, 2)
-        typo_hint = ", ".join(f'"{a}" ëì  "{b}"ì²ë¼' for a, b in typo_samples)
-
-        return f"""ëë ì¼ë³¸ ì§êµ¬ ìíì ì§ì  ì¨ë³¸ íêµ­ì¸ Threads ì¬ì©ìì¼.
-íë¡ìë¤íí ìì°ì¤ë¬ì´ ì¼ì ê³µì ì²ë¼ ê¸ì ì¨.
-
-[ì ë í¼í´ì¼ í  ííë¤]
-- 'íì§ë ë³´ì¥!', 'ì±ë¶ë ë¯¿ì ì ì', 'ì§ììì´ë¼', 'ì¶ì²ëë¦½ëë¤' â ì ë ê¸ì§
-- '~ê² ê°ì§ ìë?', '~ì´ë ì¸ì?' â ëë¬´ ì´ì, ê¸ì§
-- 'ì¬íì ë¬¼ë¡ë ë±' â ê´ê³  ì¹´í¼ ëë, ê¸ì§
-- ê°ê²© ì¸ê¸ â ì ë ê¸ì§
-- 'ì°ë¦¬ ë³ì', 'ì ê¸°', ê°ì¡± ì¸ê¸ â ì ë ê¸ì§
-- 'ëìê² ìì íë³µì', 'ì§ì³ìë ë', 'ìë¡ê° ëë¤' â ê°ì± ê³¼ì, ì ë ê¸ì§
-- 'ì½êµ­', 'íì§ ì½êµ­' â ì°ì§ ë§ ê². ëë­ì¤í ì´(ë§ì°ëª¨í í¤ìì, ì½ì½ì¹´ë¼íì¸, ì ëë­ ë±) ëë ëí¤í¸íë¡ ì¸ ê²
-ëì : ë¶ìì íê³ , ì§§ê³ , ë°ë³µë ìê³ , ì§ì§ ì¬ë ë§í¬ë¡.
-
-{self._POST_EXAMPLES}
-
----
-[ì´ë² ê¸ìì íë¡ì í¸ì¹­] â "{follower_term}"
-
-[ì´ë² ê¸ êµ¬ì¡°]
-{structure['label']}: {structure['hint']}
-
-[ì´ë² ê¸ í¤]
-{tone['label']}: {tone['instruction']}
-
-[í¸ëí° ì¤í ê·ì¹ â ë°ëì 1~2ê° í¬í¨]
-ë¹ ë¥´ê² í¸ëí° íì´ííë¤ ìê¸°ë ìì°ì¤ë¬ì´ ì¤í.
-ì´ë² ê¸ì {typo_hint} ì¤íì¼ ì¤í í¬í¨.
-ì¤íë ìµì§ì¤ë½ì§ ìê², ì¤ì  íì´í ì¤ìì²ë¼ ìì°ì¤ë½ê².
-
-[ê¸ ê¸¸ì´ ê·ì¹ â ë°ëì ì¤ì]
-ìµì 10ì¤ ì´ì ìì±í  ê². ê¶ì¥ 12~16ì¤.
-ê° ì¤ì ì§§ì 1~2ë¬¸ì¥ì¼ë¡ ëë ê² (ì¤í¬ë¡¤ ì ë).
-í ë¨ë½ì ëª°ìì°ì§ ë§ê³  í­ì ì¤ë°ê¿ì¼ë¡ í¸í¡ ëë ê².
-ì§§ì ê¸(10ì¤ ë¯¸ë§)ì ë¶í©ê²© â ë°ëì ê¸¸ê³  ìì°ì¤ë½ê².
-
-{self._SAFETY_RULES}
-
-ì¶ë ¥ íì (JSONë§, ì¶ê° ì¤ëª ìì´):
-{{
-  "content": "Threads ë³¸ë¬¸ (ì¤ë°ê¿ì \\nì¼ë¡)",
-  "first_comment": "ì²« ëê¸ (URL í¬í¨ ê°ë¥, ìì°ì¤ë½ê² ì ë)",
-  "faq": [
-    {{"question": "ìì ì§ë¬¸1", "answer": "ëµë³1"}},
-    {{"question": "ìì ì§ë¬¸2", "answer": "ëµë³2"}}
-  ]
-}}"""
-
-    def _build_user_prompt(self, packet: StoryPacket, hook_tmpl: str, follower_term: str) -> str:
-        hook = hook_tmpl.format(
-            city=packet.city,
-            situation=packet.situation,
-            emotion=packet.emotion,
+        typo_hint = ", ".join(f'"{a}" 대신 "{b}"처럼' for a, b in typo_samples)
+        return (
+            "너는 일본 직구 상품을 직접 써본 한국인 Threads 사용자야.\n"
+            "팔로워들한테 자연스러운 일상 공유처럼 글을 써.\n\n"
+            + self._POST_EXAMPLES + "\n\n---\n"
+            + f'[이번 글 팔로워 호칭] → "{follower_term}"\n'
+            + f'[이번 글 구조] {structure["label"]}: {structure["hint"]}\n'
+            + f'[이번 글 톤] {tone["label"]}: {tone["instruction"]}\n'
+            + f"[핸드폰 오타 규칙] 이번 글에 {typo_hint} 스타일 오타 포함.\n"
+            + "[글 길이] 최소 10줄 이상. 권장 12~16줄.\n\n"
+            + self._SAFETY_RULES + "\n\n"
+            + "출력 형식 (JSON만):\n"
+            + '{"content": "Threads 본문 (줄바꾸은 \\n으로)", '
+            + '"first_comment": "첫 댓글", '
+            + '"faq": [{"question": "질문1", "answer": "답별1"}, {"question": "질문2", "answer": "답별2"}]}'
         )
-        features = ", ".join(packet.product_features[:3]) if packet.product_features else "í¨ê³¼ ì¢ì"
-        price_line = ""  # ê°ê²© ê¸ìì ì ì¸
 
-        return f"""[ì¤í ë¦¬ ì»¨íì¤í¸]
-ì¬íì§: {packet.city}
-ìí©: {packet.situation}
-ê°ì±: {packet.emotion}
-ì¤í ë¦¬ íë§: {packet.story_theme}
-ì¶ì² ì¤íë ë°©í¥: "{hook}"
-íë¡ì í¸ì¹­: "{follower_term}"
+    def _build_user_prompt(self, packet, hook_tmpl, follower_term):
+        hook = hook_tmpl.format(city=packet.city, situation=packet.situation, emotion=packet.emotion)
+        features = ", ".join(packet.product_features[:3]) if packet.product_features else "효과 좋음"
+        return (
+            "[스토리 컨텍스트]\n"
+            f"여행지: {packet.city}\n상황: {packet.situation}\n"
+            f"감성: {packet.emotion}\n스토리 테마: {packet.story_theme}\n"
+            f'완료 오프닝 방향: "{hook}"\n팔로워 호칭: "{follower_term}"\n\n'
+            "[상품 정보]\n"
+            f"상품명: {packet.product_name}\n"
+            f"주요 특징: {features}\n스토어: {packet.store_name}\n\n"
+            "중요: product_url 절대 본문에 포함 금지.\n"
+            "댓글에 '직구' 또는 '정보' 댓글 달아달라고 자연스러게 유도."
+        )
 
-[ìí ì ë³´]
-ìíëª: {packet.product_name}
-ì£¼ì í¹ì§: {features}
-{price_line}
-ì¤í ì´: {packet.store_name}
-
-ì¤ì: product_url ì ë ë³¸ë¬¸ì í¬í¨ ê¸ì§.
-ëê¸ì 'ì§êµ¬' ëë 'ì ë³´' ëê¸ ë¬ìë¬ë¼ê³  ìì°ì¤ë½ê² ì ë."""
-
-    def _parse_output(self, raw: str) -> dict:
-        raw = re.sub(r'^```(?:json)?\s*', '', raw.strip())
-        raw = re.sub(r'\s*```$', '', raw.strip())
+    def _parse_output(self, raw):
+        raw = raw.strip()
+        # Remove markdown code fences using string operations (avoiding backtick conflicts)
+        fence = '\x60\x60\x60'
+        if raw.startswith(fence):
+            first_nl = raw.find('\n')
+            if first_nl != -1:
+                raw = raw[first_nl + 1:]
+            if raw.rstrip().endswith(fence):
+                raw = raw.rstrip()[:-3].rstrip()
         return json.loads(raw)
 
-    def _validate_content(self, content: str) -> list:
+    def _validate_content(self, content):
         issues = []
         if re.search(r'https?://\S+|www\.\S+', content):
-            issues.append("URL í¬í¨")
+            issues.append("URL 포함")
         if re.search(r'#\w+', content):
-            issues.append("í´ìíê·¸ í¬í¨")
+            issues.append("해시태그 포함")
         emoji_count = len(re.findall(
-            r'[\U0001F300-\U0001F9FF\U0001FA00-\U0001FA9F\U00002702-\U000027B0]',
-            content
+            r'[\U0001F300-\U0001F9FF\U0001FA00-\U0001FA9F✂-➰]', content
         ))
         if emoji_count > 1:
-            issues.append(f"ì´ëª¨ì§ {emoji_count}ê° (ìµë 1ê°)")
-        for w in ['êµ¬ë§¤íì¸ì', 'í´ë¦­', 'ì§ê¸ êµ¬ì', 'ì´ë²¤í¸', 'í ì¸ì½ë']:
+            issues.append(f"이모지 {emoji_count}개")
+        for w in ['구매하세요', '클릭', '지금 구입', '이벤트', '할인코드']:
             if w in content:
-                issues.append(f"ê´ê³  ë¨ì´ í¬í¨: {w}")
+                issues.append(f"광고 단어: {w}")
         return issues
 
-    def generate(self, packet: StoryPacket, max_attempts: int = 3) -> ContentOutput:
+    def generate(self, packet, max_attempts=3):
         for attempt in range(1, max_attempts + 1):
             structure, tone, hook_tmpl, follower_term = self._pick_variants()
             system = self._build_system_prompt(structure, tone, follower_term)
-            user   = self._build_user_prompt(packet, hook_tmpl, follower_term)
-
-            logger.info(
-                f"[GEN attempt={attempt}] "
-                f"structure={structure['label']} | tone={tone['label']} | follower={follower_term}"
-            )
-
+            user = self._build_user_prompt(packet, hook_tmpl, follower_term)
+            logger.info(f"[GEN attempt={attempt}] structure={structure['label']} | tone={tone['label']}")
             try:
-                raw  = self._ai.complete(system, user, max_tokens=1400)
+                raw = self._ai.complete(system, user, max_tokens=1400)
                 data = self._parse_output(raw)
             except Exception as e:
                 logger.error(f"[GEN ERROR] {e}")
                 continue
-
             content = data.get("content", "")
-            issues  = self._validate_content(content)
-
+            issues = self._validate_content(content)
             if issues:
                 logger.warning(f"[RULE VIOLATION] attempt={attempt} | {issues}")
                 continue
-
             logger.info(f"[GEN OK] attempt={attempt}")
             return ContentOutput(
-                content           = content,
-                first_comment     = random.choice(FIRST_COMMENT_TEMPLATES),
-                faq_data          = data.get("faq", []),
-                tone_variant      = tone["label"],
-                structure_variant = structure["label"],
-                raw_prompt        = user,
+                content=content,
+                first_comment=random.choice(FIRST_COMMENT_TEMPLATES),
+                faq_data=data.get("faq", []),
+                tone_variant=tone["label"],
+                structure_variant=structure["label"],
+                raw_prompt=user,
             )
-
-        raise RuntimeError(f"ì½íì¸  ìì± ì¤í¨: {max_attempts}í ëª¨ë ê·ì¹ ìë°")
-
-
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO,
-                        format="%(asctime)s %(levelname)s %(message)s")
-    writer = ContentWriter()
-    packet = StoryPacket(
-        product_id="JP-001", product_name="ë¡ì´ì¤ í¬íì´í ì¹© ì´ì½ë  ë²í°ë§",
-        store_name="ì¿í¬ë¡í©í ë¦¬ì§êµ¬", product_url="", image_url="",
-        city="ì¿í¬ë¡", situation="ëìë§ì¸ ì¼ ì¼í", emotion="ì ë¨",
-        story_theme="ì¿í¬ë¡ ì¼í ì¤ ë°ê²¬",
-        product_features=["íì¹´ì´ë íì ", "ì ë¬¼ì©ì¼ë¡ ë±", "ë°ì­ + ì§í ë²í°í¥"],
-        price_krw=12800,
-    )
-    output = writer.generate(packet)
-    print(json.dumps({"content": output.content, "tone": output.tone_variant}, ensure_ascii=False, indent=2))
+        raise RuntimeError(f"콘텐츠 생성 실패: {max_attempts}회 모두 규칙 위반")
