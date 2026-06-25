@@ -189,7 +189,7 @@ class ContentWriter:
             + f'[이번 글 구조] {structure["label"]}: {structure["hint"]}\n'
             + f'[이번 글 톤] {tone["label"]}: {tone["instruction"]}\n'
             + f"[핸드폰 오타 규칙] 이번 글에 {typo_hint} 스타일 오타 포함.\n"
-            + "[글 길이] 최소 10줄 이상. 권장 12~16줄.\n\n"
+            + "[글 길이] 최대 8줄. 권장 6~8줄.\n\n"
             + self._SAFETY_RULES + "\n\n"
             + "출력 형식 (JSON만):\n"
             + '{"content": "Threads 본문 (줄바꾸은 \\n으로)", '
@@ -247,7 +247,7 @@ class ContentWriter:
             user = self._build_user_prompt(packet, hook_tmpl, follower_term)
             logger.info(f"[GEN attempt={attempt}] structure={structure['label']} | tone={tone['label']}")
             try:
-                raw = self._ai.complete(system, user, max_tokens=1400)
+                raw = self._ai.complete(system, user, max_tokens=900)
                 data = self._parse_output(raw)
             except Exception as e:
                 logger.error(f"[GEN ERROR] {e}")
