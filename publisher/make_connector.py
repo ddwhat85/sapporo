@@ -48,6 +48,17 @@ class PublishPacket:
     def __post_init__(self):
         self.first_comment = "https://5makase.com"
 
+    def _next_kst_datetime(self) -> str:
+        """항상 미래인 target_time의 KST ISO8601 datetime 반환 (GitHub Actions 지연 대응)."""
+        from datetime import timezone, timedelta as td
+        KST = timezone(td(hours=9))
+        now = datetime.now(KST)
+        h, m = map(int, self.target_time.split(':'))
+        target = now.replace(hour=h, minute=m, second=0, microsecond=0)
+        if target <= now + td(minutes=3):
+            target += td(days=1)
+        return target.strftime("%Y-%m-%dT%H:%M:%S+09:00")
+
     def to_webhook_payload(self) -> dict:
         return {
             "pipeline_id":        self.pipeline_id,
@@ -59,6 +70,7 @@ class PublishPacket:
             "first_comment":      self.first_comment,
             "content":            self.content + "\n5makase.com",
             "target_time":        self.target_time,
+            "target_datetime":    self._next_kst_datetime(),
             "faq_data":           [asdict(f) for f in self.faq_data],
             "review_score":       self.review_score,
             "story_theme":        self.story_theme,
